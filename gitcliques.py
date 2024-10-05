@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import networkx as nx
-from itertools import combinations
 import matplotlib.pyplot as plt
 
 # Function to get the followers of a user
@@ -17,23 +16,57 @@ def get_followers(username, token=None):
         st.error(f"Failed to fetch followers for {username}. Status code: {response.status_code}")
         return []
 
-# Function to create the graph
+# Function to get the users a person is following
+def get_following(username, token=None):
+    url = f"https://api.github.com/users/{username}/following"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return [user['login'] for user in response.json()]
+    else:
+        st.error(f"Failed to fetch following for {username}. Status code: {response.status_code}")
+        return []
+
+# Function to create the directed graph based on followers and following
 def create_follower_graph(usernames, token=None):
-    G = nx.Graph()
+    G = nx.DiGraph()
+    
     for username in usernames:
         G.add_node(username)
+        
+        # Get the users that this user follows
+        following = get_following(username, token)
+        
+        # Get the users who follow this user
         followers = get_followers(username, token)
-        for follower in followers:
-            if follower in usernames:
-                G.add_edge(username, follower)
+        
+        for user in following:
+            if user in usernames:
+                G.add_edge(username, user)
+                
+        for user in followers:
+            if user in usernames and not G.has_edge(user, username):
+                G.add_edge(user, username)
+    
     return G
 
-# Function to find cliques
-def find_cliques(G):
-    return list(nx.find_cliques(G))
+# Function to find bidirectional and unidirectional edges
+def find_bidirectional_unidirectional_edges(G):
+    bidirectional_edges = []
+    unidirectional_edges = []
+    
+    for u, v in G.edges():
+        if G.has_edge(v, u):
+            bidirectional_edges.append((u, v))
+        else:
+            unidirectional_edges.append((u, v))
+    
+    return bidirectional_edges, unidirectional_edges
 
 # Streamlit UI
-st.title("GitHub Follower Clique Finder")
+st.title("GitHub Follower Clique Finder with Directed Arrows and Edge Coloring")
 
 # Input: Set of GitHub usernames
 usernames = st.text_area("Enter GitHub usernames (comma-separated)", "user1, user2, user3")
@@ -42,26 +75,28 @@ usernames = [u.strip() for u in usernames.split(",") if u.strip()]
 # GitHub API Token (optional)
 token = st.text_input("GitHub API Token (optional)")
 
-if st.button("Find Cliques"):
+if st.button("Find Cliques and Draw Graph"):
     if not usernames:
         st.error("Please provide at least one GitHub username.")
     else:
-        st.info("Fetching followers and creating graph...")
+        st.info("Fetching followers and following data, creating directed graph...")
         G = create_follower_graph(usernames, token)
         
-        st.info("Finding cliques...")
-        cliques = find_cliques(G)
+        st.info("Finding bidirectional and unidirectional edges...")
+        bidirectional_edges, unidirectional_edges = find_bidirectional_unidirectional_edges(G)
         
-        if cliques:
-            st.success(f"Found {len(cliques)} cliques.")
-            for i, clique in enumerate(cliques):
-                st.write(f"Clique {i+1}: {', '.join(clique)}")
-        else:
-            st.warning("No cliques found.")
-        
-        # Optionally visualize the graph
+        # Visualization
         pos = nx.spring_layout(G)
-        nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray")
-        plt.title("GitHub Follower Graph")
+        
+        # Draw all nodes
+        nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=500)
+        nx.draw_networkx_labels(G, pos)
+        
+        # Draw unidirectional edges in gray
+        nx.draw_networkx_edges(G, pos, edgelist=unidirectional_edges, edge_color="gray", arrows=True, arrowstyle='-|>', arrowsize=15)
+        
+        # Draw bidirectional edges in a different color, say blue
+        nx.draw_networkx_edges(G, pos, edgelist=bidirectional_edges, edge_color="blue", arrows=True, arrowstyle='-|>', arrowsize=15)
+        
+        plt.title("GitHub Follower Graph with Bidirectional (Blue) and Unidirectional (Gray) Arrows")
         st.pyplot(plt)
-
