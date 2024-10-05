@@ -68,8 +68,8 @@ def find_bidirectional_unidirectional_edges(G):
 # Streamlit UI
 st.title("GitHub Follower Clique Finder with Directed Arrows and Edge Coloring")
 
-# Input: Set of GitHub usernames
-usernames = st.text_area("Enter GitHub usernames (comma-separated)", "user1, user2, user3")
+# Input: Set of GitHub usernames with a placeholder instead of default text
+usernames = st.text_area("Enter GitHub usernames (comma-separated)", placeholder="e.g., user1, user2, user3")
 usernames = [u.strip() for u in usernames.split(",") if u.strip()]
 
 # GitHub API Token (optional)
