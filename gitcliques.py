@@ -68,14 +68,22 @@ def find_bidirectional_unidirectional_edges(G):
 # Streamlit UI
 st.title("GitHub Follower Clique Finder with Directed Arrows and Edge Coloring")
 
-# Input: Set of GitHub usernames with a placeholder instead of default text
-usernames = st.text_area("Enter GitHub usernames (comma-separated)", placeholder="e.g., user1, user2, user3")
-usernames = [u.strip() for u in usernames.split(",") if u.strip()]
+# Using st.form to allow submission by pressing Enter
+with st.form(key="github_form"):
+    # Input: Set of GitHub usernames with a placeholder instead of default text
+    usernames_input = st.text_input("Enter GitHub usernames (comma-separated)", placeholder="e.g., user1, user2, user3")
+    
+    # GitHub API Token (optional)
+    token = st.text_input("GitHub API Token (optional)")
+    
+    # Submit button
+    submit_button = st.form_submit_button(label="Find Cliques and Draw Graph")
 
-# GitHub API Token (optional)
-token = st.text_input("GitHub API Token (optional)")
-
-if st.button("Find Cliques and Draw Graph"):
+# Only process when the form is submitted
+if submit_button:
+    # Process usernames input
+    usernames = [u.strip() for u in usernames_input.split(",") if u.strip()]
+    
     if not usernames:
         st.error("Please provide at least one GitHub username.")
     else:
